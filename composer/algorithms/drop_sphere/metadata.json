@@ -1,0 +1,15 @@
+{
+    "drop_sphere": {
+        "name": "Drop Sphere",
+        "class_name": "DropSphere",
+        "functional": "apply_drop_sphere",
+        "tldr": "Drop channels or dimensions according to embeddings",
+        "attribution": "(Knighton et al, 2022)",
+        "link": "",
+        "domains": [
+            "dv"
+        ],
+        "summary": "Drop channels or dimensions according to embeddings",
+        "use": "Networks using Conv or Linear"
+    }
+}

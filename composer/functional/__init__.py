@@ -22,6 +22,7 @@ from composer.algorithms.channels_last import apply_channels_last
 from composer.algorithms.colout import colout_batch
 from composer.algorithms.cutmix import cutmix_batch
 from composer.algorithms.cutout import cutout_batch
+from composer.algorithms.drop_sphere import apply_drop_sphere
 from composer.algorithms.ema import compute_ema
 from composer.algorithms.factorize import apply_factorization
 from composer.algorithms.fused_layernorm import apply_fused_layernorm
@@ -47,6 +48,7 @@ __all__ = [
     'compute_ema',
     'cutmix_batch',
     'cutout_batch',
+    'apply_drop_sphere',
     'apply_factorization',
     'apply_fused_layernorm',
     'apply_ghost_batchnorm',

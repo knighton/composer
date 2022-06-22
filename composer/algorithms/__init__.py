@@ -45,6 +45,7 @@ from composer.algorithms.channels_last import ChannelsLast
 from composer.algorithms.colout import ColOut, ColOutTransform
 from composer.algorithms.cutmix import CutMix
 from composer.algorithms.cutout import CutOut
+from composer.algorithms.drop_sphere import DropSphere
 from composer.algorithms.ema import EMA
 from composer.algorithms.factorize import Factorize
 from composer.algorithms.fused_layernorm import FusedLayerNorm
@@ -73,6 +74,7 @@ __all__ = [
     'ColOutTransform',
     'CutMix',
     'CutOut',
+    'DropSphere',
     'EMA',
     'Factorize',
     'FusedLayerNorm',

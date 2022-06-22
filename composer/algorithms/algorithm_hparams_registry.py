@@ -12,6 +12,7 @@ from composer.algorithms.channels_last import ChannelsLast
 from composer.algorithms.colout import ColOut
 from composer.algorithms.cutmix import CutMix
 from composer.algorithms.cutout import CutOut
+from composer.algorithms.drop_sphere import DropSphere
 from composer.algorithms.ema import EMA
 from composer.algorithms.factorize import Factorize
 from composer.algorithms.fused_layernorm import FusedLayerNorm
@@ -37,6 +38,7 @@ algorithm_registry: Dict[str, Union[Type[Algorithm], Type[hp.Hparams]]] = {
     'seq_length_warmup': SeqLengthWarmup,
     'cutmix': CutMix,
     'cutout': CutOut,
+    'drop_sphere': DropSphere,
     'ema': EMA,
     'factorize': Factorize,
     'fused_layernorm': FusedLayerNorm,
