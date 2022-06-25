@@ -23,7 +23,6 @@ class DropSphereNd(nn.Module):
         self.rate = rate
         self.power = power
         self.embed_dim = embed_dim
-        self.embeds = None
         self.was_training = False
         self.many_epochs = 100
         self.epoch = -1
@@ -40,7 +39,7 @@ class DropSphereNd(nn.Module):
         if self.rate * progress < np.random.uniform():
             return x
 
-        if self.embeds is None:
+        if not hasattr(self, 'embeds'):
             self.register_buffer('embeds', torch.randn(self.embed_dim, x.shape[1], device=x.device))
 
         n, c = x.shape[:2]
@@ -49,10 +48,9 @@ class DropSphereNd(nn.Module):
 
         index = ceil(c ** self.power) - 1
         maxes = activ.sort(1).values[:, index:index + 1]
-        keep = (activ <= maxes).type(x.dtype)
-        shape = (n, c) + (1,) * (x.ndim - 2)
-        keep = keep.view(shape)
 
+        shape = (n, c) + (1,) * (x.ndim - 2)
+        keep = (activ <= maxes).type(x.dtype).view(shape)
         return x * keep / keep.mean()
 
 
