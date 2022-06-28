@@ -16,6 +16,7 @@ from composer.algorithms.drop_sphere import DropSphere
 from composer.algorithms.ema import EMA
 from composer.algorithms.factorize import Factorize
 from composer.algorithms.fused_layernorm import FusedLayerNorm
+from composer.algorithms.gated_linear_units import GatedLinearUnits
 from composer.algorithms.ghost_batchnorm import GhostBatchNorm
 from composer.algorithms.gradient_clipping import GradientClipping
 from composer.algorithms.label_smoothing import LabelSmoothing
@@ -42,6 +43,7 @@ algorithm_registry: Dict[str, Union[Type[Algorithm], Type[hp.Hparams]]] = {
     'ema': EMA,
     'factorize': Factorize,
     'fused_layernorm': FusedLayerNorm,
+    'gated_linear_units': GatedLinearUnits,
     'ghost_batchnorm': GhostBatchNorm,
     'label_smoothing': LabelSmoothing,
     'layer_freezing': LayerFreezing,
