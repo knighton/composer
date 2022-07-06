@@ -333,7 +333,8 @@ class StreamingDataset(IterableDataset):
         if not blocking:
             assert num_processes is None, 'num_processes is only available if this method is called blocking'
 
-        # Create lock here, not in __init__, because of DataLoader num_workers and fork/spawn semantics.
+        # Create lock in download() because we are prevented from putting it in __init__ because of DataLoader
+        # num_workers and fork/spawn semantics.
         if not hasattr(self, '_lock'):
             self._lock = Lock()
 
@@ -450,23 +451,33 @@ class StreamingDataset(IterableDataset):
         Returns:
             Any: The sample dict.
         """
+        # Get the shard and offset where the sample lives.
         shard = self.index.sample_shards[idx]
         offset = self.index.sample_shard_offsets[idx]
         size = self.index.bytes_per_sample[idx]
 
+        # Create lock in __getitem__ because we are prevented from putting it in __init__ because of DataLoader
+        # num_workers and fork/spawn semantics.
+        if not hasattr(self, '_lock'):
+            self._lock = Lock()
+
+        # Load its shard if not loaded.
         with self._lock:
             if not self._has_shard[shard]:
                 self._download_shard(shard, [shard])
                 self._load_shards([shard], 0, self.index.total_samples)
 
+        # Read the file at the offset.
         basename = get_shard_basename(shard)
         shard_filename = os.path.join(self.local, basename)
         with open(shard_filename, 'rb', 0) as fp:
             fp.seek(offset)
             data = fp.read(size)
 
+        # Get the raw dict from the bytes.
         raw = bytes_to_sample_dict(data, self.index.fields)
 
+        # Decode each field.
         sample = {}
         for key, decode in self.decoders.items():
             sample[key] = decode(raw[key])
