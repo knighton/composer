@@ -262,8 +262,8 @@ class StreamingDataset(IterableDataset):
         self._download_file(basename, wait)
         return shard
 
-    def _download_shards(self, missing_shards: List[int], shards_to_download: List[int], min_id: int,
-                         max_id: int, workers: int = 1) -> None:
+    def _download_shards_pool(self, missing_shards: List[int], shards_to_download: List[int], min_id: int,
+                              max_id: int, num_processes: Optional[int]) -> None:
         """Download and load the given missing shards.
 
         Args:
@@ -271,21 +271,45 @@ class StreamingDataset(IterableDataset):
             shards_to_download (List[int]): List of shards to download by this worker.
             min_id (int): Lowest sample ID of this partition.
             max_id (int): Highest sample ID of this partition.
-            workers (int, default: 1): Number of concurrent shard downloads (ie, size of process pool).
+            num_processes (Optional[int]): Number of concurrent shard downloads (ie, size of process pool). If None,
+                uses number of CPUs.
         """
-        # Download shards via a process pool.
-        pool = Pool(workers)
+        pool = Pool(num_processes)
         download_shard = lambda shard: self._download_shard(shard, shards_to_download)
         try:
             for shard in pool.imap_unordered(download_shard, missing_shards):
                 self._load_shards([shard], min_id, max_id)
-            with self._lock:
-                self._download_status = _DownloadStatus.DONE
         except Exception as e:
-            self._download_status = _DownloadStatus.FAILED
-            self._download_exception = e
+            with self._lock:
+                self._download_status = _DownloadStatus.FAILED
+                self._download_exception = e
+            return
+        with self._lock:
+            self._download_status = _DownloadStatus.DONE
 
-    def download(self, blocking: bool = True, workers: int = 1) -> bool:
+    def _download_shards_sequential(self, missing_shards: List[int], shards_to_download: List[int], min_id: int,
+                                    max_id: int) -> None:
+        """Download and load the given missing shards.
+
+        Args:
+            missing_shards (List[int]): The missing shards.
+            shards_to_download (List[int]): List of shards to download by this worker.
+            min_id (int): Lowest sample ID of this partition.
+            max_id (int): Highest sample ID of this partition.
+        """
+        for shard in missing_shards:
+            try:
+                self._download_shard(shard, shards_to_download)
+                self._load_shards([shard], min_id, max_id)
+            except Exception as e:
+                with self._lock:
+                    self._download_status = _DownloadStatus.FAILED
+                    self._download_exception = e
+                return
+        with self._lock:
+            self._download_status = _DownloadStatus.DONE
+
+    def download(self, blocking: bool = True, num_processes: Optional[int] = None) -> bool:
         """Download and load all shards (optionally blocking, returns whether done).
 
         Bails out if has already been called.
@@ -293,11 +317,16 @@ class StreamingDataset(IterableDataset):
         Args:
             blocking (bool, default True): If blocking, downloads/loads all shards before returning. If non-blocking,
                 loads all cached shards, starts a thread to download/load the remaining missing shards, and returns.
-            workers (int, default 1): Number of concurrent shard downloads (ie, size of process pool).
+            num_processes (Optional[int]): Number of concurrent shard downloads (ie, size of process pool). If None,
+                uses number of CPUs. This parameter is only specified if blocking, otherwise shards are downloaded one
+                at a time.
 
         Returns:
             bool: Whether all shards have been downloaded when it returns.
         """
+        if not blocking:
+            assert num_processes is None, 'num_processes is only available if this method is called blocking'
+
         # Create lock here, not in __init__, because of DataLoader num_workers and fork/spawn semantics.
         if not hasattr(self, '_lock'):
             self._lock = Lock()
@@ -343,9 +372,9 @@ class StreamingDataset(IterableDataset):
 
         # Download any missing shards, either blocking or in a background thread.
         if blocking:
-            self._download_shards(missing_shards, shards_to_download, min_id, max_id, workers)
+            self._download_shards_pool(missing_shards, shards_to_download, min_id, max_id, num_processes)
         else:
-            Thread(target=self._download_shards, args=(missing_shards, shards_to_download, min_id, max_id, workers),
+            Thread(target=self._download_shards_sequential, args=(missing_shards, shards_to_download, min_id, max_id),
                    daemon=True).start()
 
         # Return whether done.
