@@ -170,6 +170,7 @@ class StreamingDataset(IterableDataset):
 
         # Fields, protected by the lock, relating to loading shards in the background.
         self._lock: Lock
+        self._has_shard = np.zeros(self.index.num_shards, np.uint8)
         self._next_epoch = 0
         self._epoch_to_todo_ids = {}
         self._downloaded_ids = []
@@ -246,6 +247,11 @@ class StreamingDataset(IterableDataset):
                     todo_ids.reverse()
                     todo_ids.extend(new_ids)
                     todo_ids.reverse()
+
+            # Note that we have loaded the shards.
+            for shard in shards:
+                self._has_shard[shard] = True
+
 
     def _download_shard(self, shard: int, shards_to_download: List[int]) -> int:
         """Download the given shard.
@@ -435,7 +441,8 @@ class StreamingDataset(IterableDataset):
     def __getitem__(self, idx: int) -> Any:
         """Get the sample at the index, assuming its shard is loaded.
 
-        Do not call this directly unless the shard containing this idx has been loaded. Will crash otherwise.
+        If the shard containing this idx is not downloaded or loaded, will block to download/load the shard before
+        reading the sample.
 
         Args:
             idx (int): Sample ID.
@@ -446,6 +453,11 @@ class StreamingDataset(IterableDataset):
         shard = self.index.sample_shards[idx]
         offset = self.index.sample_shard_offsets[idx]
         size = self.index.bytes_per_sample[idx]
+
+        with self._lock:
+            if not self._has_shard[shard]:
+                self._download_shard(shard, [shard])
+                self._load_shards([shard], 0, self.index.total_samples)
 
         basename = get_shard_basename(shard)
         shard_filename = os.path.join(self.local, basename)
